@@ -23,6 +23,8 @@ use super::{
 
 #[derive(Debug)]
 pub enum Event {
+
+    // 接收到请求文件内容事件
     InboundRequest {
         request: String,
         channel: ResponseChannel<FileResponse>,
@@ -31,18 +33,25 @@ pub enum Event {
 
 // 事件处理
 pub struct EventLoop {
+
     // P2P网络管理组件
     swarm: Swarm<ComposedBehaviour>,
+    
     // 命令通道接收端
     command_receiver: mpsc::Receiver<Command>,
+    
     // 事件通道发送端
     event_sender: mpsc::Sender<Event>,
+    
     // 缓存等待链接节点的请求
     pending_dial: HashMap<PeerId, oneshot::Sender<Result<(), Box<dyn Error + Send>>>>,
+    
     // 缓存节点提供共享文件的请求
     pending_start_providing: HashMap<QueryId, oneshot::Sender<()>>,
+    
     // 缓存获取提供共享文件节点的请求
     pending_get_providers: HashMap<QueryId, oneshot::Sender<HashSet<PeerId>>>,
+    
     // 缓存获取共享文件内容的请求
     pending_request_file:
         HashMap<RequestId, oneshot::Sender<Result<String, Box<dyn Error + Send>>>>,
@@ -68,10 +77,16 @@ impl EventLoop {
     pub async fn run(mut self) {
         // 异步轮询事件
         loop {
+
+            // 轮询事件
             tokio::select! {
+
+                // 轮询网络事件
                 event = self.swarm.next() => self.handle_event(event.expect("Swarm stream to be infinite.")).await,
+                
+                // 轮询命令事件
                 command = self.command_receiver.recv() => match command {
-                    Some(c) => self.handle_command(c).await,
+                    Some(c) => self.handle_command(c).await,// 处理命令
                     None=>  return,
                 },
             }
@@ -84,14 +99,18 @@ impl EventLoop {
         event: SwarmEvent<ComposedEvent,EitherError<ConnectionHandlerUpgrErr<io::Error>, io::Error>>,
     ) {
         match event {
+            
             // 节点提供共享文件事件
             SwarmEvent::Behaviour(ComposedEvent::Kademlia(
+
+                // Kademlia 查询完成事件
                 KademliaEvent::OutboundQueryCompleted {
                     id,
                     result: QueryResult::StartProviding(_),
                     ..
                 },
             )) => {
+
                 // 从缓存中节点提供共享文件的请求
                 let sender: oneshot::Sender<()> = self
                     .pending_start_providing
@@ -101,8 +120,11 @@ impl EventLoop {
                 // 发送命令执行成功状态    
                 let _ = sender.send(());
             }
+
             // 获取提供共享文件的节点事件
             SwarmEvent::Behaviour(ComposedEvent::Kademlia(
+
+                // Kademlia 查询完成事件
                 KademliaEvent::OutboundQueryCompleted {
                     id,
                     result: QueryResult::GetProviders(Ok(GetProvidersOk { providers, .. })),
@@ -116,11 +138,16 @@ impl EventLoop {
                     .expect("Completed query to be previously pending.")
                     .send(providers);
             }
+
+            // 忽略其他事件
             SwarmEvent::Behaviour(ComposedEvent::Kademlia(_)) => {}
+            
             // 请求文件内容事件
             SwarmEvent::Behaviour(ComposedEvent::RequestResponse(
                 RequestResponseEvent::Message { message, .. },
             )) => match message {
+
+                // 请求文件内容事件
                 RequestResponseMessage::Request {
                     request, channel, ..
                 } => {
@@ -132,6 +159,8 @@ impl EventLoop {
                         .await
                         .expect("Event receiver not to be dropped.");
                 }
+
+                // 响应请求文件内容事件
                 RequestResponseMessage::Response {
                     request_id,
                     response,
@@ -143,6 +172,8 @@ impl EventLoop {
                         .send(Ok(response.0));
                 }
             },
+
+            // 请求文件内容失败事件
             SwarmEvent::Behaviour(ComposedEvent::RequestResponse(
                 RequestResponseEvent::OutboundFailure {
                     request_id, error, ..
@@ -154,9 +185,12 @@ impl EventLoop {
                     .expect("Request to still be pending.")
                     .send(Err(Box::new(error)));
             }
+
+            // 响应请求文件内容事件
             SwarmEvent::Behaviour(ComposedEvent::RequestResponse(
                 RequestResponseEvent::ResponseSent { .. },
             )) => {}
+
             // 本地监听事件
             SwarmEvent::NewListenAddr { address, .. } => {
                 let local_peer_id = *self.swarm.local_peer_id();
@@ -165,7 +199,11 @@ impl EventLoop {
                     address.with(Protocol::P2p(local_peer_id.into()))
                 );
             }
+
+            // 连接事件 1
             SwarmEvent::IncomingConnection { .. } => {}
+            
+            // 连接事件 2   
             SwarmEvent::ConnectionEstablished {
                 peer_id, endpoint, ..
             } => {
@@ -175,7 +213,11 @@ impl EventLoop {
                     }
                 }
             }
+
+            // 连接事件 3
             SwarmEvent::ConnectionClosed { .. } => {}
+
+            // 连接事件 4
             SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
                 if let Some(peer_id) = peer_id {
                     if let Some(sender) = self.pending_dial.remove(&peer_id) {
@@ -183,7 +225,11 @@ impl EventLoop {
                     }
                 }
             }
+
+            // 连接事件 5
             SwarmEvent::IncomingConnectionError { .. } => {}
+
+            // 节点连接事件
             SwarmEvent::Dialing(peer_id) => println!("Dialing {}", peer_id),
             e => panic!("{:?}", e),
         }
