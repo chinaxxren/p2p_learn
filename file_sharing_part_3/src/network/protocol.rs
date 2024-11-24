@@ -9,10 +9,13 @@ use libp2p::{
 };
 
 #[derive(Debug, Clone)]
+
 pub struct FileExchangeProtocol();
 #[derive(Clone)]
+
 pub struct FileExchangeCodec();
 #[derive(Debug, Clone, PartialEq, Eq)]
+
 pub struct FileRequest(pub String);
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileResponse(pub String);

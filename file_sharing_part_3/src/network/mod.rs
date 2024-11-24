@@ -33,6 +33,7 @@ use self::{
 pub async fn new(
     secret_key_seed: Option<u8>,
 ) -> Result<(Client, Receiver<Event>, EventLoop), Box<dyn Error>> {
+
     // 创建密钥对
     // 根据提供的种子（如果有）生成一个Ed25519密钥对，用于网络通信的身份验证。
     let id_keys = match secret_key_seed {
@@ -76,8 +77,7 @@ pub async fn new(
 
     // 创建网络层管理组件Swarm
     let swarm = SwarmBuilder::new(
-        // 开发传输层，用于在本地网络上进行通信。
-        transport, // 自定义的网络行为，包含Kademlia和RequestResponse。
+        transport, 
         behaviour, peer_id,
     )
     .build();
