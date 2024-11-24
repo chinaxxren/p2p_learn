@@ -192,6 +192,7 @@ impl EventLoop {
     // 异步处理命令事件
     async fn handle_command(&mut self, command: Command) {
         match command {
+            
             // 监听本地节点
             Command::StartListening { addr, sender } => {
                 let _ = match self.swarm.listen_on(addr) {
@@ -199,6 +200,7 @@ impl EventLoop {
                     Err(e) => sender.send(Err(Box::new(e))),
                 };
             }
+            
             // 节点加入KAD网络，链接指定节点，插入缓存
             Command::Dial {
                 peer_id,
@@ -225,6 +227,7 @@ impl EventLoop {
                     }
                 }
             }
+            
             // 节点提供共享文件，插入缓存
             Command::StartProviding { file_name, sender } => {
                 let query_id = self
@@ -235,6 +238,7 @@ impl EventLoop {
                     .expect("No store error.");
                 self.pending_start_providing.insert(query_id, sender);
             }
+            
             // 获取提供共享文件的节点，插入缓存
             Command::GetProviders { file_name, sender } => {
                 let query_id = self
@@ -244,6 +248,7 @@ impl EventLoop {
                     .get_providers(file_name.into_bytes().into());
                 self.pending_get_providers.insert(query_id, sender);
             }
+            
             // 请求共享文件，插入缓存
             Command::RequestFile {
                 file_name,
@@ -257,6 +262,7 @@ impl EventLoop {
                     .send_request(&peer, FileRequest(file_name));
                 self.pending_request_file.insert(request_id, sender);
             }
+
             // 返回共享文件内容
             Command::RespondFile { file, channel } => {
                 self.swarm

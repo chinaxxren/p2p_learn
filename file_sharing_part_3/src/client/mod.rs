@@ -179,7 +179,6 @@ impl Client {
         receiver.await.expect("Sender not be dropped.")
     }
 
-    #[allow(dead_code)]
     /// 异步处理文件响应请求
     ///
     /// 该函数用于将文件作为响应发送到请求者
@@ -191,6 +190,7 @@ impl Client {
     ///
     /// # 期望
     /// 期望命令接收者不会被丢弃如果接收者被丢弃，发送操作将失败，并产生一个panic
+    #[allow(dead_code)]
     pub async fn respond_file(&mut self, file: String, channel: ResponseChannel<FileResponse>) {
         self.sender
             .send(Command::RespondFile { file, channel })
